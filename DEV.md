@@ -95,3 +95,35 @@ terraform destroy
 | `400 Bad Request` mentioning `x-ms-version` | Old provider binary without Table Storage support | Rebuild from `kewalaka/add-table-storage-dataplane` branch |
 | `404 Not Found` on entity read | Table does not exist yet | Confirm `depends_on = [azapi_data_plane_resource.table]` is present |
 | `403` on table create despite correct RBAC | RBAC propagation delay | Add `time_sleep` resource after RBAC assignment, or re-run `apply` |
+
+---
+
+## Setting up the GitHub Actions integration test
+
+The `integration.yml` workflow needs three things before it can run.
+
+### 1. Repository variables (Settings → Secrets and variables → Actions → Variables)
+
+| Variable | Example | Notes |
+|---|---|---|
+| `ARM_CLIENT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Client ID of the App Registration or managed identity |
+| `ARM_TENANT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Entra ID tenant |
+| `ARM_SUBSCRIPTION_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Target subscription |
+
+### 2. Federated identity credentials (OIDC)
+
+In the App Registration → Certificates & secrets → Federated credentials, add one entry **per trigger**:
+
+| Scenario | Subject claim | Audience |
+|---|---|---|
+| Push to main (plan) | `repo:kewalaka/terraform-azapi-global-outputs:ref:refs/heads/main` | `api://AzureADTokenExchange` |
+| Environment gate (apply) | `repo:kewalaka/terraform-azapi-global-outputs:environment:integration` | `api://AzureADTokenExchange` |
+| Pull request (plan) | `repo:kewalaka/terraform-azapi-global-outputs:pull_request` | `api://AzureADTokenExchange` |
+
+The App Registration needs **`Storage Table Data Contributor`** on the storage account and **Contributor** (or a custom role) on the subscription/resource group used by the example.
+
+### 3. GitHub Environment (Settings → Environments → New environment)
+
+Create an environment named **`integration`** and add at least one required reviewer.  
+When a push lands on `main`, the plan job runs immediately; the apply job waits until a reviewer approves it in the GitHub Actions UI.
+
