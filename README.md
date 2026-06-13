@@ -98,19 +98,8 @@ resource "azurerm_virtual_network_peering" "to_hub" {
 
 ---
 
-## Inputs
-
-| Name | Description | Type | Required |
-|---|---|---|---|
-| `storage_table_url` | Full HTTPS URL of the Table Storage table | `string` | yes |
-| `writes` | Entity to write (`partition_key`, `row_key`, `outputs`) | `object` | no |
-| `reads` | Map of `{ pk => { rk => [keys] } }` to read | `map(map(list(string)))` | no |
-
-## Outputs
-
-| Name | Description |
-|---|---|
-| `outputs` | `outputs[partition_key][row_key][output_key]` — nested map of read results |
+<!-- BEGIN_TF_DOCS -->
+<!-- END_TF_DOCS -->
 
 ---
 

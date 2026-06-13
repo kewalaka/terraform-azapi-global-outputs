@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths-ignore:
+      - "CHANGELOG.md"
+      - ".release-please-manifest.json"
+      - "README.md"
+      - "examples/*/README.md"
+
+jobs:
+  # ── Conventional commit check (PR title becomes the squash-merge commit) ──
+  commit-lint:
+    name: Conventional commit title
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allow all standard types; scopes are optional
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            chore
+            ci
+            build
+            revert
+          requireScope: false
+
+  # ── terraform fmt ─────────────────────────────────────────────────────────
+  fmt:
+    name: terraform fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.12"
+      - name: Format check
+        run: terraform fmt -check -recursive
+
+  # ── tflint (matrix over module root + every examples/ subdirectory) ───────
+  tflint:
+    name: tflint / ${{ matrix.directory }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - "."
+          - "examples/full"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Init plugins
+        run: tflint --init --chdir=${{ matrix.directory }} --config=$(pwd)/.tflint.hcl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint
+        run: tflint --chdir=${{ matrix.directory }} --config=$(pwd)/.tflint.hcl --format=compact

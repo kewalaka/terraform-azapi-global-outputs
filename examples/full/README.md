@@ -33,3 +33,8 @@ all_nzn_outputs = {
   hub_vnet_id         = "/subscriptions/00000000.../vnet-hub-nzn"
 }
 ```
+
+---
+
+<!-- BEGIN_TF_DOCS -->
+<!-- END_TF_DOCS -->

@@ -1,0 +1,33 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.tf"
+      - ".terraform-docs.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Auto-regenerate terraform-docs and commit if anything changed ─────────
+  # Commit message uses 'docs' type so release-please does not cut a release.
+  # Pushes made with GITHUB_TOKEN do not re-trigger workflows (GitHub policy),
+  # so there is no infinite-loop risk.
+  terraform-docs:
+    name: terraform-docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Generate docs (module root + examples)
+        uses: terraform-docs/gh-actions@v1
+        with:
+          working-dir: ".,examples/full"
+          output-file: README.md
+          output-method: inject
+          git-push: "true"
+          git-commit-message: "docs(terraform-docs): auto-update module documentation"
