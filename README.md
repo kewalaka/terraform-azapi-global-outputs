@@ -18,11 +18,29 @@ once the storage account exists.
 
 ## Why azapi instead of azurerm?
 
+`azurerm_storage_table_entity` requires **shared key** (storage account access key)
+authentication. Even though Azure Table Storage has supported Microsoft Entra ID
+(Azure AD) authentication for data-plane operations since
+[April 2022 (GA)](https://azure.microsoft.com/en-us/updates/?id=generally-available-azure-storage-table-access-using-azure-active-directory),
+the `azurerm` provider has not been updated to use it.
+
+The root cause was a specific ACL management operation that didn't support Entra auth
+([azure-rest-api-specs#17485](https://github.com/Azure/azure-rest-api-specs/issues/17485)),
+which blocked progress in the provider
+([hashicorp/terraform-provider-azurerm#15083](https://github.com/hashicorp/terraform-provider-azurerm/issues/15083)).
+That API issue was subsequently fixed ([Azure update 496287](https://azure.microsoft.com/en-us/updates/?id=496287))
+but the azurerm provider still hasn't been updated as of mid-2025 — the issue remains open.
+
+This module avoids the problem entirely by using `azapi_data_plane_resource`, which
+calls the Table Storage REST API directly with a standard Azure AD bearer token
+(OAuth 2.0 `https://storage.azure.com/.default` scope). No shared key is needed.
+
 | Concern | azurerm | azapi (this module) |
 |---|---|---|
+| Auth model | Shared key only | Entra ID (Azure AD) RBAC |
+| Shared key required? | Yes | No |
 | Subscription scope | Storage account must be in provider subscription | Any storage account reachable by the caller |
 | Provider blocks needed | One per subscription | None beyond a single `azapi {}` block |
-| Auth | Shared key or ARM RBAC | Azure AD RBAC (`Storage Table Data Contributor`) |
 | Terraform version | Any | >= 1.9 |
 
 ---
