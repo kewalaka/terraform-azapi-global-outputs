@@ -99,6 +99,43 @@ resource "azurerm_virtual_network_peering" "to_hub" {
 ---
 
 <!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9 |
+| <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) | >= 2.0 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| <a name="provider_azapi"></a> [azapi](#provider\_azapi) | >= 2.0 |
+
+## Modules
+
+No modules.
+
+## Resources
+
+| Name | Type |
+|------|------|
+| [azapi_data_plane_resource.write](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/data_plane_resource) | resource |
+| [azapi_data_plane_resource.read](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/data_plane_resource) | data source |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_storage_table_url"></a> [storage\_table\_url](#input\_storage\_table\_url) | The full HTTPS URL of the Table Storage table used for global outputs, e.g. https://mystorageaccount.table.core.windows.net/globalOutputs | `string` | n/a | yes |
+| <a name="input_reads"></a> [reads](#input\_reads) | Configuration for reading outputs from the global-outputs table.<br/>A map of PartitionKey to a map of RowKey to a list of output keys to read.<br/><br/>- Specific keys: { "pk" = { "rk" = ["key1", "key2"] } } returns only those keys.<br/>- All keys:      { "pk" = { "rk" = [] } } returns all outputs for that entity.<br/><br/>Example:<br/>  reads = {<br/>    "alz-platform-connectivity-hub" = {<br/>      "australiaeast"   = ["hub\_virtual\_network\_id"]<br/>      "newzealandnorth" = []<br/>    }<br/>  } | `map(map(list(string)))` | `{}` | no |
+| <a name="input_writes"></a> [writes](#input\_writes) | Configuration for writing outputs to the global-outputs table.<br/>One entity is created per module call (partition\_key + row\_key).<br/><br/>Example:<br/>  writes = {<br/>    partition\_key = "alz-platform-connectivity-hub"<br/>    row\_key       = "australiaeast"<br/>    outputs = {<br/>      hub\_virtual\_network\_id = module.hub\_vnet.resource\_id<br/>      firewall\_ip\_address    = "10.0.0.4"<br/>    }<br/>  } | <pre>object({<br/>    partition_key = string<br/>    row_key       = string<br/>    outputs       = any<br/>  })</pre> | `null` | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| <a name="output_outputs"></a> [outputs](#output\_outputs) | A 3-level nested map of read outputs: outputs[partition\_key][row\_key][output\_key].<br/><br/>Example access:<br/>  module.global\_outputs.outputs["alz-platform-connectivity-hub"]["australiaeast"].hub\_virtual\_network\_id |
 <!-- END_TF_DOCS -->
 
 ---
