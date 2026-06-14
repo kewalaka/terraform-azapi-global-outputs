@@ -215,11 +215,7 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve tfplan
 
-      # Save the updated state after apply (even on failure — partial applies
-      # produce a valid state file that must be preserved to enable recovery).
-      - name: Save Terraform state to cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.TF_WORKING_DIR }}/terraform.tfstate
-          key: tf-state-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: terraform destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform destroy -auto-approve
+

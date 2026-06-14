@@ -1,16 +1,16 @@
 data "azurerm_client_config" "current" {}
 
-resource "azurerm_resource_group" "example" {
-  name     = var.resource_group_name
-  location = var.location
-}
-
 resource "random_string" "suffix" {
   length  = 8
   lower   = true
   upper   = false
   special = false
   numeric = true
+}
+
+resource "azurerm_resource_group" "example" {
+  name     = "${var.resource_group_name}-${random_string.suffix.result}"
+  location = var.location
 }
 
 resource "azurerm_storage_account" "example" {
@@ -31,6 +31,11 @@ resource "azurerm_role_assignment" "table_contributor" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
+resource "time_sleep" "rbac_propagation" {
+  depends_on      = [azurerm_role_assignment.table_contributor]
+  create_duration = "90s"
+}
+
 # Create the table using azapi data plane — no ARM subscription context needed.
 resource "azapi_data_plane_resource" "table" {
   type      = "Microsoft.Storage/storageAccounts/tableServices/tables@2026-04-06"
@@ -38,7 +43,7 @@ resource "azapi_data_plane_resource" "table" {
   name      = "globalOutputs"
   body      = {}
 
-  depends_on = [azurerm_role_assignment.table_contributor]
+  depends_on = [time_sleep.rbac_propagation]
 }
 
 locals {
@@ -91,8 +96,8 @@ module "read_hub" {
   storage_table_url = local.table_url
   reads = {
     "connectivity-hub" = {
-      "australiaeast"   = ["hub_vnet_id"]  # read a specific key only
-      "newzealandnorth" = []               # empty list = read all keys
+      "australiaeast"   = ["hub_vnet_id"] # read a specific key only
+      "newzealandnorth" = []              # empty list = read all keys
     }
   }
 
