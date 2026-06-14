@@ -2,11 +2,11 @@
 # in ~/.terraformrc and skips the registry for Azure/azapi.
 # See ../../DEV.md for setup instructions.
 terraform {
-  required_version = ">= 1.9"
+  required_version = ">= 1.13"
   required_providers {
     azapi = {
       source  = "Azure/azapi"
-      version = ">= 2.0"
+      version = ">= 2.10"
     }
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -15,6 +15,10 @@ terraform {
     random = {
       source  = "hashicorp/random"
       version = "~> 3.0"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.14"
     }
   }
 }

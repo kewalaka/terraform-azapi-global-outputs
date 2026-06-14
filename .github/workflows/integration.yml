@@ -74,8 +74,7 @@ jobs:
           key: ${{ steps.sha.outputs.cache_key }}
 
   # ── terraform plan ────────────────────────────────────────────────────────
-  # Runs on every push and PR. Uploads { tfplan + terraform.tfstate } as a
-  # single artifact so the apply job is guaranteed a consistent state/plan pair.
+  # Runs on every push and PR. Uploads tfplan as an artifact to the apply job
   plan:
     name: Terraform Plan
     needs: build-provider
@@ -142,7 +141,7 @@ jobs:
             ${{ env.TF_WORKING_DIR }}/tfplan
             ${{ env.TF_WORKING_DIR }}/terraform.tfstate
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 2
 
   # ── terraform apply ───────────────────────────────────────────────────────
   # Only runs on pushes to main (and workflow_dispatch).
