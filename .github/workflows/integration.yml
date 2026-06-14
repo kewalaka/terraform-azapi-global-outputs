@@ -113,7 +113,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~1.12"
+          terraform_version: "~1.14"
 
       - name: terraform init
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -185,7 +185,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~1.12"
+          terraform_version: "~1.14"
 
       # Download the exact { tfplan, terraform.tfstate } pair from the plan job.
       # This guarantees apply uses the state that plan was generated against.

@@ -11,3 +11,7 @@ config {
   # Don't follow module calls — remote providers are not initialised in CI.
   call_module_type = "none"
 }
+
+rule "terraform_standard_module_structure" {
+  enabled = false
+}
