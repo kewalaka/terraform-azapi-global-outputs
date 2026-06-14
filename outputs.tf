@@ -8,7 +8,7 @@ DESCRIPTION
   value = {
     for pk, rk_map in var.reads : pk => {
       for rk, keys in rk_map : rk => {
-        for k in (
+        for k in(
           length(keys) > 0
           ? keys
           : keys(local.read_outputs["${pk}/${rk}"])

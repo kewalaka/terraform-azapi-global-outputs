@@ -74,8 +74,7 @@ jobs:
           key: ${{ steps.sha.outputs.cache_key }}
 
   # ── terraform plan ────────────────────────────────────────────────────────
-  # Runs on every push and PR. Uploads { tfplan + terraform.tfstate } as a
-  # single artifact so the apply job is guaranteed a consistent state/plan pair.
+  # Runs on every push and PR. Uploads tfplan as an artifact to the apply job
   plan:
     name: Terraform Plan
     needs: build-provider
@@ -114,18 +113,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~1.12"
-
-      # Restore last-known state so plan reflects actual infra.
-      # On first run the cache key is missing; that is fine — terraform
-      # will plan from scratch (no existing infrastructure).
-      - name: Restore Terraform state
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.TF_WORKING_DIR }}/terraform.tfstate
-          key: tf-state-${{ github.ref_name }}-latest
-          restore-keys: |
-            tf-state-${{ github.ref_name }}-
+          terraform_version: "~1.14"
 
       - name: terraform init
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -153,7 +141,7 @@ jobs:
             ${{ env.TF_WORKING_DIR }}/tfplan
             ${{ env.TF_WORKING_DIR }}/terraform.tfstate
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 2
 
   # ── terraform apply ───────────────────────────────────────────────────────
   # Only runs on pushes to main (and workflow_dispatch).
@@ -197,7 +185,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~1.12"
+          terraform_version: "~1.14"
 
       # Download the exact { tfplan, terraform.tfstate } pair from the plan job.
       # This guarantees apply uses the state that plan was generated against.
