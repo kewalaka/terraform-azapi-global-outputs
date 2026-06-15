@@ -204,6 +204,6 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
       - name: terraform destroy
+        if: always() && steps.init.outcome == 'success'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform destroy -auto-approve
-
