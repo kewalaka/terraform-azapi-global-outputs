@@ -47,28 +47,33 @@ jobs:
 
       - name: Restore cached provider binary
         id: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.local/terraform-plugins/terraform-provider-azapi
           key: ${{ steps.sha.outputs.cache_key }}
 
-      - uses: actions/setup-go@v5
-        if: steps.cache.outputs.cache-hit != 'true'
-        with:
-          go-version: "1.26"
-
-      - name: Clone and build provider
+      - name: Clone provider source
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           git clone --depth=1 --branch kewalaka/add-table-storage-dataplane \
             https://github.com/kewalaka/terraform-provider-azapi.git /tmp/provider-src
+
+      - uses: actions/setup-go@v6
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          go-version: "1.26"
+          cache-dependency-path: /tmp/provider-src/go.sum
+
+      - name: Build provider
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
           mkdir -p ~/.local/terraform-plugins
           cd /tmp/provider-src
           go build -o ~/.local/terraform-plugins/terraform-provider-azapi .
 
       - name: Save provider binary to cache
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/.local/terraform-plugins/terraform-provider-azapi
           key: ${{ steps.sha.outputs.cache_key }}
@@ -90,10 +95,10 @@ jobs:
     outputs:
       artifact_name: tf-run-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Restore provider binary
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.local/terraform-plugins/terraform-provider-azapi
           key: ${{ needs.build-provider.outputs.cache_key }}
@@ -111,7 +116,7 @@ jobs:
           }
           TFRC
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.14"
 
@@ -134,7 +139,7 @@ jobs:
       # Bundle plan + the state as it was at plan time.
       # Guarantees the apply job uses the same (plan, state) pair — no race condition.
       - name: Upload plan artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tf-run-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -162,10 +167,10 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
       ARM_USE_OIDC: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Restore provider binary
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.local/terraform-plugins/terraform-provider-azapi
           key: ${{ needs.build-provider.outputs.cache_key }}
@@ -183,14 +188,14 @@ jobs:
           }
           TFRC
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.14"
 
       # Download the exact { tfplan, terraform.tfstate } pair from the plan job.
       # This guarantees apply uses the state that plan was generated against.
       - name: Download plan artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ${{ needs.plan.outputs.artifact_name }}
           path: ${{ env.TF_WORKING_DIR }}
@@ -204,6 +209,6 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
       - name: terraform destroy
+        if: always() && steps.init.outcome == 'success'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform destroy -auto-approve
-

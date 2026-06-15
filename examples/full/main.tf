@@ -21,10 +21,10 @@ resource "azurerm_storage_account" "example" {
   account_replication_type = "LRS"
 }
 
-# Grant the current caller data-plane access to Table Storage.
-# RBAC propagation can take 1-2 minutes; the table create will
-# fail with 403 if applied too quickly. Re-run apply if this happens,
-# or add a time_sleep after this resource.
+# Grant the current caller data-plane access for entity read/write operations.
+# RBAC propagation can take 1-2 minutes; entity writes will fail with 403 if
+# applied too quickly. Re-run apply if this happens, or add a time_sleep after
+# this resource.
 resource "azurerm_role_assignment" "table_contributor" {
   scope                = azurerm_storage_account.example.id
   role_definition_name = "Storage Table Data Contributor"
@@ -36,14 +36,16 @@ resource "time_sleep" "rbac_propagation" {
   create_duration = "90s"
 }
 
-# Create the table using azapi data plane — no ARM subscription context needed.
-resource "azapi_data_plane_resource" "table" {
-  type      = "Microsoft.Storage/storageAccounts/tableServices/tables@2026-04-06"
-  parent_id = "${azurerm_storage_account.example.name}.table.core.windows.net"
+# Create the table via ARM control plane — no shared keys needed.
+resource "azapi_resource" "table" {
+  type      = "Microsoft.Storage/storageAccounts/tableServices/tables@2022-09-01"
+  parent_id = "${azurerm_storage_account.example.id}/tableServices/default"
   name      = "globalOutputs"
-  body      = {}
-
-  depends_on = [time_sleep.rbac_propagation]
+  body = {
+    properties = {
+      signedIdentifiers = []
+    }
+  }
 }
 
 locals {
@@ -67,7 +69,7 @@ module "write_hub_aue" {
     }
   }
 
-  depends_on = [azapi_data_plane_resource.table]
+  depends_on = [azapi_resource.table, time_sleep.rbac_propagation]
 }
 
 module "write_hub_nzn" {
@@ -83,7 +85,7 @@ module "write_hub_nzn" {
     }
   }
 
-  depends_on = [azapi_data_plane_resource.table]
+  depends_on = [azapi_resource.table, time_sleep.rbac_propagation]
 }
 
 # ---------------------------------------------------------------------------

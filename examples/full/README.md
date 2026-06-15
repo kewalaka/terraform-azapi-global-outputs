@@ -7,7 +7,7 @@ then exercises both `writes` and `reads` in the same apply.
 
 1. Creates a resource group and storage account
 2. Assigns **Storage Table Data Contributor** to the current caller
-3. Creates the `globalOutputs` table via `azapi_data_plane_resource`
+3. Creates the `globalOutputs` table via `azapi_resource` (ARM control plane)
 4. Writes two entities (simulating two producing stacks)
 5. Reads back one entity with a specific key filter and one with all keys
 
@@ -68,7 +68,7 @@ all_nzn_outputs = {
 
 | Name | Type |
 |------|------|
-| [azapi_data_plane_resource.table](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/data_plane_resource) | resource |
+| [azapi_resource.table](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) | resource |
 | [azurerm_resource_group.example](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_role_assignment.table_contributor](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_storage_account.example](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |

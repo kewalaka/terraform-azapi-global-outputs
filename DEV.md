@@ -93,7 +93,7 @@ terraform destroy
 | `Provider "Azure/azapi" not found` | Binary missing from dev_overrides path | Check `~/terraform-providers/terraform-provider-azapi` exists and is executable (`chmod +x`) |
 | `403 Forbidden` on entity operations | Missing RBAC assignment | Ensure `Storage Table Data Contributor` is assigned; wait 1–2 min for propagation |
 | `400 Bad Request` mentioning `x-ms-version` | Old provider binary without Table Storage support | Rebuild from `kewalaka/add-table-storage-dataplane` branch |
-| `404 Not Found` on entity read | Table does not exist yet | Confirm `depends_on = [azapi_data_plane_resource.table]` is present |
+| `404 Not Found` on entity read | Table does not exist yet | Confirm `depends_on = [azapi_resource.table]` is present |
 | `403` on table create despite correct RBAC | RBAC propagation delay | Add `time_sleep` resource after RBAC assignment, or re-run `apply` |
 
 ---
