@@ -4,6 +4,19 @@ resource "azapi_data_plane_resource" "write" {
   type      = "Microsoft.Storage/storageAccounts/tableServices/tables/entities@2026-04-06"
   parent_id = local.table_parent_id
 
+  # Role assignment propagation in Storage data plane is eventually consistent.
+  # Retry authorization failures so callers do not need artificial sleeps.
+  retry = {
+    error_message_regex = [
+      "(?i)AuthorizationPermissionMismatch",
+      "(?i)not authorized",
+      "(?i)forbidden",
+      "(?i)authorization",
+    ]
+    interval_seconds     = 10
+    max_interval_seconds = 120
+  }
+
   identifiers = {
     partitionKey = var.writes.partition_key
     rowKey       = var.writes.row_key

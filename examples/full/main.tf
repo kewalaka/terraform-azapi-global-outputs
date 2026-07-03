@@ -1,4 +1,4 @@
-data "azurerm_client_config" "current" {}
+data "azapi_client_config" "current" {}
 
 resource "random_string" "suffix" {
   length  = 8
@@ -8,39 +8,56 @@ resource "random_string" "suffix" {
   numeric = true
 }
 
-resource "azurerm_resource_group" "example" {
-  name     = "${var.resource_group_name}-${random_string.suffix.result}"
+locals {
+  resource_group_name  = "${var.resource_group_name}-${random_string.suffix.result}"
+  storage_account_name = "stazapigot${random_string.suffix.result}"
+}
+
+# Create the resource group via ARM control plane.
+resource "azapi_resource" "resource_group" {
+  type     = "Microsoft.Resources/resourceGroups@2024-03-01"
+  name     = local.resource_group_name
   location = var.location
 }
 
-resource "azurerm_storage_account" "example" {
-  name                      = "stazapigot${random_string.suffix.result}"
-  resource_group_name       = azurerm_resource_group.example.name
-  location                  = azurerm_resource_group.example.location
-  account_tier              = "Standard"
-  account_replication_type  = "LRS"
-  shared_access_key_enabled = false
+# Create the storage account via ARM control plane and disable shared keys.
+resource "azapi_resource" "storage_account" {
+  type      = "Microsoft.Storage/storageAccounts@2023-05-01"
+  name      = local.storage_account_name
+  parent_id = azapi_resource.resource_group.id
+  location  = var.location
+
+  body = {
+    kind = "StorageV2"
+    sku = {
+      name = "Standard_LRS"
+    }
+    properties = {
+      allowSharedKeyAccess = false
+    }
+  }
 }
+
+resource "random_uuid" "table_contributor_role_assignment" {}
 
 # Grant the current caller data-plane access for entity read/write operations.
-# RBAC propagation can take 1-2 minutes; entity writes will fail with 403 if
-# applied too quickly. Re-run apply if this happens, or add a time_sleep after
-# this resource.
-resource "azurerm_role_assignment" "table_contributor" {
-  scope                = azurerm_storage_account.example.id
-  role_definition_name = "Storage Table Data Contributor"
-  principal_id         = data.azurerm_client_config.current.object_id
-}
+resource "azapi_resource" "table_contributor" {
+  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
+  name      = random_uuid.table_contributor_role_assignment.result
+  parent_id = azapi_resource.storage_account.id
 
-resource "time_sleep" "rbac_propagation" {
-  depends_on      = [azurerm_role_assignment.table_contributor]
-  create_duration = "90s"
+  body = {
+    properties = {
+      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3"
+      principalId      = data.azapi_client_config.current.object_id
+    }
+  }
 }
 
 # Create the table via ARM control plane — no shared keys needed.
 resource "azapi_resource" "table" {
   type      = "Microsoft.Storage/storageAccounts/tableServices/tables@2022-09-01"
-  parent_id = "${azurerm_storage_account.example.id}/tableServices/default"
+  parent_id = "${azapi_resource.storage_account.id}/tableServices/default"
   name      = "globalOutputs"
   body = {
     properties = {
@@ -50,7 +67,7 @@ resource "azapi_resource" "table" {
 }
 
 locals {
-  table_url = "https://${azurerm_storage_account.example.name}.table.core.windows.net/globalOutputs"
+  table_url = "https://${local.storage_account_name}.table.core.windows.net/globalOutputs"
 }
 
 # ---------------------------------------------------------------------------
@@ -70,7 +87,7 @@ module "write_hub_aue" {
     }
   }
 
-  depends_on = [azapi_resource.table, time_sleep.rbac_propagation]
+  depends_on = [azapi_resource.table, azapi_resource.table_contributor]
 }
 
 module "write_hub_nzn" {
@@ -86,7 +103,7 @@ module "write_hub_nzn" {
     }
   }
 
-  depends_on = [azapi_resource.table, time_sleep.rbac_propagation]
+  depends_on = [azapi_resource.table, azapi_resource.table_contributor]
 }
 
 # ---------------------------------------------------------------------------

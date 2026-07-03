@@ -5,10 +5,10 @@ then exercises both `writes` and `reads` in the same apply.
 
 ## What it does
 
-1. Creates a resource group and storage account (with shared key auth disabled)
-2. Assigns **Storage Table Data Contributor** to the current caller
+1. Creates a resource group and storage account via `azapi_resource` (with shared key auth disabled)
+2. Assigns **Storage Table Data Contributor** to the current caller via `azapi_resource`
 3. Creates the `globalOutputs` table via `azapi_resource` (ARM control plane)
-4. Writes two entities (simulating two producing stacks)
+4. Writes two entities (simulating two producing stacks), using AzAPI customized retry for transient authorization errors
 5. Reads back one entity with a specific key filter and one with all keys
 
 ## Run
@@ -43,18 +43,14 @@ all_nzn_outputs = {
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.13 |
 | <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) | >= 2.10 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | ~> 4.0 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.0 |
-| <a name="requirement_time"></a> [time](#requirement\_time) | ~> 0.14 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
 | <a name="provider_azapi"></a> [azapi](#provider\_azapi) | >= 2.10 |
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | ~> 4.0 |
 | <a name="provider_random"></a> [random](#provider\_random) | ~> 3.0 |
-| <a name="provider_time"></a> [time](#provider\_time) | ~> 0.14 |
 
 ## Modules
 
@@ -68,13 +64,13 @@ all_nzn_outputs = {
 
 | Name | Type |
 |------|------|
+| [azapi_resource.resource_group](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) | resource |
+| [azapi_resource.storage_account](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) | resource |
 | [azapi_resource.table](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) | resource |
-| [azurerm_resource_group.example](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_role_assignment.table_contributor](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
-| [azurerm_storage_account.example](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |
+| [azapi_resource.table_contributor](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) | resource |
+| [random_uuid.table_contributor_role_assignment](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) | resource |
 | [random_string.suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
-| [time_sleep.rbac_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) | resource |
-| [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) | data source |
+| [azapi_client_config.current](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) | data source |
 
 ## Inputs
 
