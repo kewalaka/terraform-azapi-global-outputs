@@ -5,7 +5,7 @@ then exercises both `writes` and `reads` in the same apply.
 
 ## What it does
 
-1. Creates a resource group and storage account
+1. Creates a resource group and storage account (with shared key auth disabled)
 2. Assigns **Storage Table Data Contributor** to the current caller
 3. Creates the `globalOutputs` table via `azapi_resource` (ARM control plane)
 4. Writes two entities (simulating two producing stacks)
