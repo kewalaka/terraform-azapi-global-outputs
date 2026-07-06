@@ -2,7 +2,7 @@
 
 A Terraform module for sharing outputs across stacks via Azure Table Storage,
 using the [`azapi`](https://github.com/Azure/terraform-provider-azapi) provider's
-data-plane resources — no `azurerm` provider needed, no subscription scope restrictions.
+data-plane resources.
 
 This is the azapi equivalent of
 [terraform-azurerm-global-outputs](https://github.com/Datacom-Public-Cloud-IaC/terraform-azurerm-global-outputs).
@@ -29,7 +29,7 @@ The root cause was a specific ACL management operation that didn't support Entra
 which blocked progress in the provider
 ([hashicorp/terraform-provider-azurerm#15083](https://github.com/hashicorp/terraform-provider-azurerm/issues/15083)).
 That API issue was subsequently fixed ([Azure update 496287](https://azure.microsoft.com/en-us/updates/?id=496287))
-but the azurerm provider still hasn't been updated as of mid-2025 — the issue remains open.
+but the azurerm provider still hasn't been updated as of mid-2025 and the issue remains open.
 
 This module avoids the problem entirely by using `azapi_data_plane_resource`, which
 calls the Table Storage REST API directly with a standard Azure AD bearer token
@@ -104,13 +104,13 @@ resource "azurerm_virtual_network_peering" "to_hub" {
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.13 |
-| <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) | >= 2.10 |
+| <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) | Prerelease version built in CI |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azapi"></a> [azapi](#provider\_azapi) | >= 2.10 |
+| <a name="provider_azapi"></a> [azapi](#provider\_azapi) | Prerelease version built in CI |
 
 ## Modules
 
