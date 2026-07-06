@@ -5,7 +5,7 @@ using the [`azapi`](https://github.com/Azure/terraform-provider-azapi) provider'
 data-plane resources.
 
 This is the azapi equivalent of
-[terraform-azurerm-global-outputs](https://github.com/Datacom-Public-Cloud-IaC/terraform-azurerm-global-outputs).
+[terraform-azurerm-global-outputs](https://github.com/kewalaka/terraform-azurerm-global-outputs).
 It exposes the same variable interface (`storage_table_url`, `writes`, `reads`) and
 the same output shape (`outputs[pk][rk][key]`), so the two modules are interchangeable
 once the storage account exists.
