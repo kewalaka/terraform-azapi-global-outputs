@@ -10,7 +10,7 @@ It exposes the same variable interface (`storage_table_url`, `writes`, `reads`) 
 the same output shape (`outputs[pk][rk][key]`), so the two modules are interchangeable
 once the storage account exists.
 
-> **Status:** requires the Table Storage data-plane feature from
+> **Status (July 2026):** requires the Table Storage data-plane feature from
 > [`kewalaka/terraform-provider-azapi@kewalaka/add-table-storage-dataplane`](https://github.com/kewalaka/terraform-provider-azapi/tree/kewalaka/add-table-storage-dataplane).
 > See [DEV.md](./DEV.md) for instructions on using a locally built provider.
 
