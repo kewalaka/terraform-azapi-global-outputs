@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.1](https://github.com/kewalaka/terraform-azapi-global-outputs/compare/v0.1.0...v0.1.1) (2026-07-10)
+
+
+### Features
+
+* initial module implementation ([a661716](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/a661716576894436fd9dc7ca553e749c169927bc))
+
+
+### Bug Fixes
+
+* action versions ([de711ef](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/de711eff824474f54cb7028f56d6e818e075f010))
+* **example:** convert full example to full AzAPI flow ([3ed6101](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/3ed61017351698caea34743f7cf42596f40e7249))
+* **example:** disable shared key auth in full example ([0f29ccf](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/0f29ccf41287747d0fe6143bccdb3074a204e8e3))
+* **example:** disable shared key auth in full example ([4b4b739](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/4b4b739266b64adc3b156aefbc60bf8ab454f65a))
+* **example:** move full example provisioning to azapi ([16b4c2e](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/16b4c2e6d7b4b5cbefb2a3cb17c14a0ac81eb2ff))
+* github versions and go module cache ([7d996f1](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/7d996f149215dbdf4007da6ca29f94538afa1fc7))
+* simplify terraform & fix destroy ([3bab8ad](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/3bab8adfcce87eff9fc976b43baf62a0bc619210))
+* simplify terraform & fix destroy ([2376780](https://github.com/kewalaka/terraform-azapi-global-outputs/commit/237678018d184d7e4fe22ef50f30f7d580122000))
+
 ## 0.1.0 (unreleased)
 
 ### Features
