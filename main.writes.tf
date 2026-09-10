@@ -2,7 +2,7 @@ resource "azapi_data_plane_resource" "write" {
   count = var.writes != null ? 1 : 0
 
   type      = "Microsoft.Storage/storageAccounts/tableServices/tables/entities@2026-04-06"
-  parent_id = local.table_parent_id
+  parent_id = "${local.table_parent_id}(PartitionKey='${replace(var.writes.partition_key, "'", "''")}',RowKey='${replace(var.writes.row_key, "'", "''")}')"
 
   # Role assignment propagation in Storage data plane is eventually consistent.
   # Retry authorization failures so callers do not need artificial sleeps.
@@ -15,11 +15,6 @@ resource "azapi_data_plane_resource" "write" {
     ]
     interval_seconds     = 10
     max_interval_seconds = 120
-  }
-
-  identifiers = {
-    partitionKey = var.writes.partition_key
-    rowKey       = var.writes.row_key
   }
 
   # Outputs are stored as a single JSON-encoded blob so that the entity
