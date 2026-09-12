@@ -109,12 +109,20 @@ The `integration.yml` workflow needs three things before it can run.
 | `ARM_CLIENT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Client ID of the App Registration or managed identity |
 | `ARM_TENANT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Entra ID tenant |
 | `ARM_SUBSCRIPTION_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Target subscription |
-| `ARM_PRINCIPAL_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Optional. **Object ID** (not client ID) of the service principal. Only needed to override auto-detection |
+| `ARM_PRINCIPAL_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | **Object ID** (not client ID) of the service principal. Required for `workflow_dispatch` runs on a branch that has no federated credential |
 
-`azapi_client_config` cannot resolve `object_id` for an OIDC service principal, so
-the role assignment would fail with `InvalidPrincipalId`. The workflow therefore reads
-the `oid` claim from the ARM access token and passes it as `TF_VAR_principal_id`.
-This requires no Microsoft Graph permission. Set `ARM_PRINCIPAL_ID` only to override it.
+`azapi_client_config` cannot resolve `object_id` for an OIDC service principal, so the
+role assignment would be planned with an empty `principalId` and fail at apply with
+`InvalidPrincipalId`. The workflow uses `ARM_PRINCIPAL_ID` when set; otherwise it signs in
+and reads the `oid` claim from the ARM access token, which needs no Microsoft Graph
+permission. Token-based lookup only works when a federated credential matches the trigger
+(see below), so setting `ARM_PRINCIPAL_ID` is the reliable option for branch dispatches.
+
+To find the object ID:
+
+```bash
+az ad sp show --id <ARM_CLIENT_ID> --query id -o tsv
+```
 
 The apply job always attempts `terraform destroy`, including after a failed apply, so
 test resources are not left behind. Cleanup runs against the same state, credentials and

@@ -120,22 +120,28 @@ jobs:
         with:
           terraform_version: "~1.14"
 
-      # azapi_client_config cannot resolve object_id for an OIDC service principal,
-      # which makes the RBAC assignment fail with InvalidPrincipalId. Read the oid
-      # claim from the ARM token instead; this needs no Microsoft Graph permission.
-      # az writes to AZURE_CONFIG_DIR (a per-run temp dir), never the default profile.
-      - name: Resolve principal object ID
+      # azapi_client_config cannot resolve object_id for an OIDC service principal, so
+      # the RBAC assignment gets planned with an empty principalId and apply fails with
+      # InvalidPrincipalId. Prefer the ARM_PRINCIPAL_ID variable, which needs no token;
+      # otherwise derive the oid claim from an ARM token. Deriving requires a federated
+      # credential matching this trigger, which does not exist for arbitrary branches.
+      - name: Azure login (principal lookup)
+        id: az_login
+        if: vars.ARM_PRINCIPAL_ID == ''
+        continue-on-error: true
         uses: azure/login@v2
         with:
           client-id: ${{ vars.ARM_CLIENT_ID }}
           tenant-id: ${{ vars.ARM_TENANT_ID }}
           subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
 
+      # Fails the job with an actionable message when the principal cannot be resolved,
+      # rather than letting an empty principalId reach Azure.
       - name: Export principal object ID
         run: |
           set -euo pipefail
           OID="${{ vars.ARM_PRINCIPAL_ID }}"
-          if [ -z "$OID" ]; then
+          if [ -z "$OID" ] && [ "${{ steps.az_login.outcome }}" = "success" ]; then
             PAYLOAD=$(az account get-access-token --resource https://management.azure.com/ \
               --query accessToken -o tsv | cut -d. -f2 | tr '_-' '/+')
             case $(( ${#PAYLOAD} % 4 )) in
@@ -145,7 +151,7 @@ jobs:
             OID=$(printf '%s' "$PAYLOAD" | base64 -d | jq -r '.oid // empty')
           fi
           if [ -z "$OID" ]; then
-            echo "::error::Could not resolve the principal object ID for the role assignment."
+            echo "::error::Could not resolve the principal object ID. Set the ARM_PRINCIPAL_ID repository variable to the object ID of the service principal, or add a federated credential matching this trigger."
             exit 1
           fi
           echo "TF_VAR_principal_id=${OID}" >> "$GITHUB_ENV"
@@ -223,8 +229,12 @@ jobs:
           terraform_version: "~1.14"
 
       # Same principal resolution as the plan job. Required because terraform destroy
-      # re-evaluates the configuration rather than replaying the saved plan.
-      - name: Resolve principal object ID
+      # re-evaluates the configuration rather than replaying the saved plan. This job
+      # runs in the integration environment, so its federated credential matches.
+      - name: Azure login (principal lookup)
+        id: az_login
+        if: vars.ARM_PRINCIPAL_ID == ''
+        continue-on-error: true
         uses: azure/login@v2
         with:
           client-id: ${{ vars.ARM_CLIENT_ID }}
@@ -235,7 +245,7 @@ jobs:
         run: |
           set -euo pipefail
           OID="${{ vars.ARM_PRINCIPAL_ID }}"
-          if [ -z "$OID" ]; then
+          if [ -z "$OID" ] && [ "${{ steps.az_login.outcome }}" = "success" ]; then
             PAYLOAD=$(az account get-access-token --resource https://management.azure.com/ \
               --query accessToken -o tsv | cut -d. -f2 | tr '_-' '/+')
             case $(( ${#PAYLOAD} % 4 )) in
@@ -245,7 +255,7 @@ jobs:
             OID=$(printf '%s' "$PAYLOAD" | base64 -d | jq -r '.oid // empty')
           fi
           if [ -z "$OID" ]; then
-            echo "::error::Could not resolve the principal object ID for the role assignment."
+            echo "::error::Could not resolve the principal object ID. Set the ARM_PRINCIPAL_ID repository variable to the object ID of the service principal, or add a federated credential matching this trigger."
             exit 1
           fi
           echo "TF_VAR_principal_id=${OID}" >> "$GITHUB_ENV"
