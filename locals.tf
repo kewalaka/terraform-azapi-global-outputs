@@ -3,6 +3,13 @@ locals {
   # "https://account.table.core.windows.net/tableName" -> "account.table.core.windows.net/tableName"
   table_parent_id = trimprefix(var.storage_table_url, "https://")
 
+  table_entity_headers = {
+    "x-ms-version"        = "2026-04-06"
+    Accept                = "application/json;odata=nometadata"
+    DataServiceVersion    = "3.0;NetFx"
+    MaxDataServiceVersion = "3.0;NetFx"
+  }
+
   # Flatten reads into "pk/rk" => { pk, rk, keys } for for_each iteration.
   read_entries = {
     for entry in flatten([
