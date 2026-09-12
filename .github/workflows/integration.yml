@@ -120,6 +120,36 @@ jobs:
         with:
           terraform_version: "~1.14"
 
+      # azapi_client_config cannot resolve object_id for an OIDC service principal,
+      # which makes the RBAC assignment fail with InvalidPrincipalId. Read the oid
+      # claim from the ARM token instead; this needs no Microsoft Graph permission.
+      # az writes to AZURE_CONFIG_DIR (a per-run temp dir), never the default profile.
+      - name: Resolve principal object ID
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ARM_CLIENT_ID }}
+          tenant-id: ${{ vars.ARM_TENANT_ID }}
+          subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
+
+      - name: Export principal object ID
+        run: |
+          set -euo pipefail
+          OID="${{ vars.ARM_PRINCIPAL_ID }}"
+          if [ -z "$OID" ]; then
+            PAYLOAD=$(az account get-access-token --resource https://management.azure.com/ \
+              --query accessToken -o tsv | cut -d. -f2 | tr '_-' '/+')
+            case $(( ${#PAYLOAD} % 4 )) in
+              2) PAYLOAD="${PAYLOAD}==" ;;
+              3) PAYLOAD="${PAYLOAD}=" ;;
+            esac
+            OID=$(printf '%s' "$PAYLOAD" | base64 -d | jq -r '.oid // empty')
+          fi
+          if [ -z "$OID" ]; then
+            echo "::error::Could not resolve the principal object ID for the role assignment."
+            exit 1
+          fi
+          echo "TF_VAR_principal_id=${OID}" >> "$GITHUB_ENV"
+
       - name: terraform init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init -upgrade
@@ -192,6 +222,34 @@ jobs:
         with:
           terraform_version: "~1.14"
 
+      # Same principal resolution as the plan job. Required because terraform destroy
+      # re-evaluates the configuration rather than replaying the saved plan.
+      - name: Resolve principal object ID
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ARM_CLIENT_ID }}
+          tenant-id: ${{ vars.ARM_TENANT_ID }}
+          subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
+
+      - name: Export principal object ID
+        run: |
+          set -euo pipefail
+          OID="${{ vars.ARM_PRINCIPAL_ID }}"
+          if [ -z "$OID" ]; then
+            PAYLOAD=$(az account get-access-token --resource https://management.azure.com/ \
+              --query accessToken -o tsv | cut -d. -f2 | tr '_-' '/+')
+            case $(( ${#PAYLOAD} % 4 )) in
+              2) PAYLOAD="${PAYLOAD}==" ;;
+              3) PAYLOAD="${PAYLOAD}=" ;;
+            esac
+            OID=$(printf '%s' "$PAYLOAD" | base64 -d | jq -r '.oid // empty')
+          fi
+          if [ -z "$OID" ]; then
+            echo "::error::Could not resolve the principal object ID for the role assignment."
+            exit 1
+          fi
+          echo "TF_VAR_principal_id=${OID}" >> "$GITHUB_ENV"
+
       # Download the exact { tfplan, terraform.tfstate } pair from the plan job.
       # This guarantees apply uses the state that plan was generated against.
       - name: Download plan artifact
@@ -201,6 +259,7 @@ jobs:
           path: ${{ env.TF_WORKING_DIR }}
 
       - name: terraform init
+        id: init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init -upgrade
 
@@ -208,7 +267,24 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve tfplan
 
+      # Always attempt cleanup, including after a failed apply, so test resources are
+      # not left behind. Uses the same working directory, local state file, provider
+      # binary and credentials as the apply, and is scoped to this run's state only.
+      # A cleanup failure fails the job and never masks the original apply failure.
+      # Note: if the runner is terminated (hard cancellation, runner loss), no step is
+      # guaranteed to run, so cleanup cannot be guaranteed in that case.
       - name: terraform destroy
         if: always() && steps.init.outcome == 'success'
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -input=false
+
+      # Preserve the post-cleanup state so anything surviving a failed destroy can be
+      # identified and removed manually. Local state is otherwise lost with the runner.
+      - name: Upload post-run state
+        if: always() && steps.init.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: tf-state-after-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.TF_WORKING_DIR }}/terraform.tfstate
+          if-no-files-found: warn
+          retention-days: 5

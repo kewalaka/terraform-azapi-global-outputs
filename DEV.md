@@ -109,6 +109,19 @@ The `integration.yml` workflow needs three things before it can run.
 | `ARM_CLIENT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Client ID of the App Registration or managed identity |
 | `ARM_TENANT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Entra ID tenant |
 | `ARM_SUBSCRIPTION_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Target subscription |
+| `ARM_PRINCIPAL_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Optional. **Object ID** (not client ID) of the service principal. Only needed to override auto-detection |
+
+`azapi_client_config` cannot resolve `object_id` for an OIDC service principal, so
+the role assignment would fail with `InvalidPrincipalId`. The workflow therefore reads
+the `oid` claim from the ARM access token and passes it as `TF_VAR_principal_id`.
+This requires no Microsoft Graph permission. Set `ARM_PRINCIPAL_ID` only to override it.
+
+The apply job always attempts `terraform destroy`, including after a failed apply, so
+test resources are not left behind. Cleanup runs against the same state, credentials and
+provider binary as the apply, and failures are reported rather than suppressed. If the
+runner itself is terminated, no step is guaranteed to run, so cleanup cannot be
+guaranteed in that case; the post-run state is uploaded as an artifact to make any
+surviving resources identifiable.
 
 ### 2. Federated identity credentials (OIDC)
 
