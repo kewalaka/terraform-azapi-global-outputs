@@ -11,11 +11,6 @@ resource "random_string" "suffix" {
 locals {
   resource_group_name  = "${var.resource_group_name}-${random_string.suffix.result}"
   storage_account_name = "stazapigot${random_string.suffix.result}"
-
-  # azapi_client_config returns an empty object_id when the signed-in identity
-  # cannot be resolved (e.g. an OIDC service principal with no Microsoft Graph
-  # access), which ARM rejects with InvalidPrincipalId. Allow an explicit override.
-  principal_id = coalesce(var.principal_id, data.azapi_client_config.current.object_id, "unresolved")
 }
 
 # Create the resource group via ARM control plane.
@@ -54,14 +49,7 @@ resource "azapi_resource" "table_contributor" {
   body = {
     properties = {
       roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3"
-      principalId      = local.principal_id
-    }
-  }
-
-  lifecycle {
-    precondition {
-      condition     = local.principal_id != "unresolved"
-      error_message = "Unable to resolve a principal ID for the role assignment. Set the principal_id variable (or TF_VAR_principal_id) to the object ID of the identity running Terraform."
+      principalId      = data.azapi_client_config.current.object_id
     }
   }
 }

@@ -109,39 +109,12 @@ The `integration.yml` workflow needs three things before it can run.
 | `ARM_CLIENT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Client ID of the App Registration or managed identity |
 | `ARM_TENANT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Entra ID tenant |
 | `ARM_SUBSCRIPTION_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Target subscription |
-| `ARM_PRINCIPAL_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | **Object ID** (not client ID) of the service principal. Required for `workflow_dispatch` runs on a branch that has no federated credential |
-
-`azapi_client_config` cannot resolve `object_id` for an OIDC service principal, so the
-role assignment would be planned with an empty `principalId` and fail at apply with
-`InvalidPrincipalId`. The workflow uses `ARM_PRINCIPAL_ID` when set; otherwise it signs in
-and reads the `oid` claim from the ARM access token, which needs no Microsoft Graph
-permission. Token-based lookup only works when a federated credential matches the trigger
-(see below), so setting `ARM_PRINCIPAL_ID` is the reliable option for branch dispatches.
-
-`ARM_PRINCIPAL_ID` supplies only the role-assignment identity; it is not a credential and
-does not authenticate anything. It is sufficient here because the plan job starts from
-empty state, so every resource is a create and no ARM call is made during plan — the plan
-job succeeds on a feature branch with no Azure login at all. The apply job does need real
-credentials, and it has them: it runs in the `integration` environment, whose federated
-credential matches. So plan needs no auth, and apply is already authorised.
-
-To find the object ID:
-
-```bash
-az ad sp show --id <ARM_CLIENT_ID> --query id -o tsv
-```
 
 The apply job always attempts `terraform destroy`, including after a failed apply, so
 test resources are not left behind. Cleanup runs against the same state, credentials and
 provider binary as the apply, and failures are reported rather than suppressed. If the
 runner itself is terminated, no step is guaranteed to run, so cleanup cannot be
-guaranteed in that case; when destroy fails the surviving resource addresses and the
-resource group name are written to the job log so they can be removed manually.
-
-> **Note:** this repository is public, so workflow artifacts are downloadable by anyone.
-> The post-destroy state is deliberately *not* uploaded. The plan job still uploads
-> `terraform.tfstate` because the apply job needs the exact state the plan was generated
-> against; keep test data in `examples/full` non-sensitive.
+guaranteed in that case.
 
 ### 2. Federated identity credentials (OIDC)
 
@@ -159,4 +132,3 @@ The App Registration needs **`Storage Table Data Contributor`** on the storage a
 
 Create an environment named **`integration`** and add at least one required reviewer.  
 When a push lands on `main`, the plan job runs immediately; the apply job waits until a reviewer approves it in the GitHub Actions UI.
-
