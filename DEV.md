@@ -118,6 +118,13 @@ and reads the `oid` claim from the ARM access token, which needs no Microsoft Gr
 permission. Token-based lookup only works when a federated credential matches the trigger
 (see below), so setting `ARM_PRINCIPAL_ID` is the reliable option for branch dispatches.
 
+`ARM_PRINCIPAL_ID` supplies only the role-assignment identity; it is not a credential and
+does not authenticate anything. It is sufficient here because the plan job starts from
+empty state, so every resource is a create and no ARM call is made during plan — the plan
+job succeeds on a feature branch with no Azure login at all. The apply job does need real
+credentials, and it has them: it runs in the `integration` environment, whose federated
+credential matches. So plan needs no auth, and apply is already authorised.
+
 To find the object ID:
 
 ```bash
@@ -128,8 +135,13 @@ The apply job always attempts `terraform destroy`, including after a failed appl
 test resources are not left behind. Cleanup runs against the same state, credentials and
 provider binary as the apply, and failures are reported rather than suppressed. If the
 runner itself is terminated, no step is guaranteed to run, so cleanup cannot be
-guaranteed in that case; the post-run state is uploaded as an artifact to make any
-surviving resources identifiable.
+guaranteed in that case; when destroy fails the surviving resource addresses and the
+resource group name are written to the job log so they can be removed manually.
+
+> **Note:** this repository is public, so workflow artifacts are downloadable by anyone.
+> The post-destroy state is deliberately *not* uploaded. The plan job still uploads
+> `terraform.tfstate` because the apply job needs the exact state the plan was generated
+> against; keep test data in `examples/full` non-sensitive.
 
 ### 2. Federated identity credentials (OIDC)
 

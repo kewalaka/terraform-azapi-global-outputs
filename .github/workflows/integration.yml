@@ -141,7 +141,13 @@ jobs:
         run: |
           set -euo pipefail
           OID="${{ vars.ARM_PRINCIPAL_ID }}"
+          # continue-on-error keeps a failed login from ending the job before this
+          # step can explain it, so surface that failure explicitly here.
+          if [ "${{ steps.az_login.outcome }}" = "failure" ]; then
+            echo "::warning::Azure login failed, so the object ID cannot be derived from a token. This is expected on a trigger with no matching federated credential."
+          fi
           if [ -z "$OID" ] && [ "${{ steps.az_login.outcome }}" = "success" ]; then
+            # Only the oid claim is extracted; the token itself is never printed.
             PAYLOAD=$(az account get-access-token --resource https://management.azure.com/ \
               --query accessToken -o tsv | cut -d. -f2 | tr '_-' '/+')
             case $(( ${#PAYLOAD} % 4 )) in
@@ -151,7 +157,7 @@ jobs:
             OID=$(printf '%s' "$PAYLOAD" | base64 -d | jq -r '.oid // empty')
           fi
           if [ -z "$OID" ]; then
-            echo "::error::Could not resolve the principal object ID. Set the ARM_PRINCIPAL_ID repository variable to the object ID of the service principal, or add a federated credential matching this trigger."
+            echo "::error::Could not resolve the principal object ID. Set the ARM_PRINCIPAL_ID repository variable to the object ID of the service principal (az ad sp show --id <ARM_CLIENT_ID> --query id -o tsv)."
             exit 1
           fi
           echo "TF_VAR_principal_id=${OID}" >> "$GITHUB_ENV"
@@ -245,7 +251,13 @@ jobs:
         run: |
           set -euo pipefail
           OID="${{ vars.ARM_PRINCIPAL_ID }}"
+          # continue-on-error keeps a failed login from ending the job before this
+          # step can explain it, so surface that failure explicitly here.
+          if [ "${{ steps.az_login.outcome }}" = "failure" ]; then
+            echo "::warning::Azure login failed, so the object ID cannot be derived from a token. This is expected on a trigger with no matching federated credential."
+          fi
           if [ -z "$OID" ] && [ "${{ steps.az_login.outcome }}" = "success" ]; then
+            # Only the oid claim is extracted; the token itself is never printed.
             PAYLOAD=$(az account get-access-token --resource https://management.azure.com/ \
               --query accessToken -o tsv | cut -d. -f2 | tr '_-' '/+')
             case $(( ${#PAYLOAD} % 4 )) in
@@ -255,7 +267,7 @@ jobs:
             OID=$(printf '%s' "$PAYLOAD" | base64 -d | jq -r '.oid // empty')
           fi
           if [ -z "$OID" ]; then
-            echo "::error::Could not resolve the principal object ID. Set the ARM_PRINCIPAL_ID repository variable to the object ID of the service principal, or add a federated credential matching this trigger."
+            echo "::error::Could not resolve the principal object ID. Set the ARM_PRINCIPAL_ID repository variable to the object ID of the service principal (az ad sp show --id <ARM_CLIENT_ID> --query id -o tsv)."
             exit 1
           fi
           echo "TF_VAR_principal_id=${OID}" >> "$GITHUB_ENV"
@@ -284,17 +296,25 @@ jobs:
       # Note: if the runner is terminated (hard cancellation, runner loss), no step is
       # guaranteed to run, so cleanup cannot be guaranteed in that case.
       - name: terraform destroy
+        id: destroy
         if: always() && steps.init.outcome == 'success'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform destroy -auto-approve -input=false
 
-      # Preserve the post-cleanup state so anything surviving a failed destroy can be
-      # identified and removed manually. Local state is otherwise lost with the runner.
-      - name: Upload post-run state
-        if: always() && steps.init.outcome == 'success'
-        uses: actions/upload-artifact@v7
-        with:
-          name: tf-state-after-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.TF_WORKING_DIR }}/terraform.tfstate
-          if-no-files-found: warn
-          retention-days: 5
+      # Report anything still present in state after cleanup so leaked resources can be
+      # removed manually. Prints resource addresses only (no attribute values), and the
+      # resource group name, which already appears in the plan output. Deliberately does
+      # not upload terraform.tfstate: this repository is public, so run artifacts are
+      # downloadable by anyone and state may contain sensitive attribute values.
+      - name: Report surviving resources
+        if: always() && steps.destroy.outcome == 'failure'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          set -uo pipefail
+          echo "::warning::terraform destroy did not complete. Resources below may still exist and need manual removal."
+          terraform state list || true
+          RG=$(terraform state show -no-color azapi_resource.resource_group 2>/dev/null \
+            | awk -F'"' '/^ *name *=/ {print $2; exit}')
+          if [ -n "${RG:-}" ]; then
+            echo "::warning::Resource group possibly left behind: ${RG}"
+          fi
