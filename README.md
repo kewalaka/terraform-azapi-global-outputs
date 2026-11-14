@@ -10,9 +10,12 @@ It exposes the same variable interface (`storage_table_url`, `writes`, `reads`) 
 the same output shape (`outputs[pk][rk][key]`), so the two modules are interchangeable
 once the storage account exists.
 
-> **Status (July 2026):** requires the Table Storage data-plane feature from
-> [`kewalaka/terraform-provider-azapi@kewalaka/add-table-storage-dataplane`](https://github.com/kewalaka/terraform-provider-azapi/tree/kewalaka/add-table-storage-dataplane).
-> See [DEV.md](./DEV.md) for instructions on using a locally built provider.
+> **Compatibility:** integration CI builds
+> [`Azure/terraform-provider-azapi@main`](https://github.com/Azure/terraform-provider-azapi/tree/main),
+> resolving it to an immutable commit. This module still uses the former fork's
+> unsupported `identifiers` argument, and upstream data sources cannot send the
+> required Storage headers. Compatibility is not yet established.
+> See [DEV.md](./DEV.md) for provider build and pinned CI instructions.
 
 ---
 

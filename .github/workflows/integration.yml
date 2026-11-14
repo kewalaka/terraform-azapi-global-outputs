@@ -14,6 +14,12 @@ on:
       - "**.md"
       - ".release-please-manifest.json"
   workflow_dispatch:
+    inputs:
+      provider_ref:
+        description: "Upstream Azure/terraform-provider-azapi branch, tag, or commit SHA"
+        type: string
+        default: main
+        required: true
 
 # Prevent concurrent applies against the same state.
 # cancel-in-progress: false so an in-flight apply never gets abandoned mid-run.
@@ -28,22 +34,30 @@ env:
 
 jobs:
   # ── Build the custom azapi provider binary ────────────────────────────────
-  # Keyed to the provider branch's HEAD commit so cache is invalidated
-  # automatically when the branch is updated.
+  # Resolve upstream once so the cache and build use the same immutable commit.
   build-provider:
     name: Build custom azapi provider
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       provider_sha: ${{ steps.sha.outputs.sha }}
       cache_key: ${{ steps.sha.outputs.cache_key }}
     steps:
-      - name: Resolve provider branch HEAD
+      - name: Resolve upstream provider commit
         id: sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROVIDER_REF: ${{ inputs.provider_ref || 'main' }}
         run: |
-          SHA=$(git ls-remote https://github.com/kewalaka/terraform-provider-azapi \
-            refs/heads/kewalaka/add-table-storage-dataplane | cut -f1)
+          REF=$(jq -rn --arg ref "$PROVIDER_REF" '$ref | @uri')
+          SHA=$(gh api "repos/Azure/terraform-provider-azapi/commits/${REF}" --jq .sha)
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid provider commit: $SHA" >&2; exit 1; }
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
-          echo "cache_key=azapi-provider-${{ runner.os }}-${SHA}" >> "$GITHUB_OUTPUT"
+          echo "cache_key=azure-azapi-provider-${RUNNER_OS}-${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Provider: Azure/terraform-provider-azapi@${SHA} (requested: ${PROVIDER_REF})"
+          printf 'Provider: [Azure/terraform-provider-azapi@%s](https://github.com/Azure/terraform-provider-azapi/commit/%s)\n' \
+            "$SHA" "$SHA" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Restore cached provider binary
         id: cache
@@ -52,23 +66,26 @@ jobs:
           path: ~/.local/terraform-plugins/terraform-provider-azapi
           key: ${{ steps.sha.outputs.cache_key }}
 
-      - name: Clone provider source
+      - name: Checkout pinned provider source
         if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          git clone --depth=1 --branch kewalaka/add-table-storage-dataplane \
-            https://github.com/kewalaka/terraform-provider-azapi.git /tmp/provider-src
+        uses: actions/checkout@v6
+        with:
+          repository: Azure/terraform-provider-azapi
+          ref: ${{ steps.sha.outputs.sha }}
+          path: provider-src
+          persist-credentials: false
 
       - uses: actions/setup-go@v6
         if: steps.cache.outputs.cache-hit != 'true'
         with:
           go-version: "1.26"
-          cache-dependency-path: /tmp/provider-src/go.sum
+          cache-dependency-path: provider-src/go.sum
 
       - name: Build provider
         if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: provider-src
         run: |
           mkdir -p ~/.local/terraform-plugins
-          cd /tmp/provider-src
           go build -o ~/.local/terraform-plugins/terraform-provider-azapi .
 
       - name: Save provider binary to cache
@@ -201,6 +218,7 @@ jobs:
           path: ${{ env.TF_WORKING_DIR }}
 
       - name: terraform init
+        id: init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init -upgrade
 

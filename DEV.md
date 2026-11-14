@@ -1,17 +1,20 @@
 # Using a locally built provider
 
-This module requires the Table Storage data-plane feature from the
-[`kewalaka/add-table-storage-dataplane`](https://github.com/kewalaka/terraform-provider-azapi/tree/kewalaka/add-table-storage-dataplane)
-branch. That feature is not yet in the upstream registry.
+Integration CI builds the Table Storage data-plane feature from
+[`Azure/terraform-provider-azapi@main`](https://github.com/Azure/terraform-provider-azapi/tree/main).
+The module still uses the former fork's unsupported `identifiers` argument, and
+upstream data sources cannot send the required Storage headers. Building upstream
+does not resolve these compatibility blockers.
 
 ---
 
 ## 1. Clone and build the provider
 
 ```bash
-git clone https://github.com/kewalaka/terraform-provider-azapi.git
+git clone https://github.com/Azure/terraform-provider-azapi.git
 cd terraform-provider-azapi
-git checkout kewalaka/add-table-storage-dataplane
+git checkout main
+# To reproduce a CI run, check out its recorded provider SHA instead.
 
 # Build the binary into a dedicated local provider directory
 mkdir -p ~/terraform-providers
@@ -92,7 +95,7 @@ terraform destroy
 |---|---|---|
 | `Provider "Azure/azapi" not found` | Binary missing from dev_overrides path | Check `~/terraform-providers/terraform-provider-azapi` exists and is executable (`chmod +x`) |
 | `403 Forbidden` on entity operations | Missing RBAC assignment | Ensure `Storage Table Data Contributor` is assigned; wait 1–2 min for propagation |
-| `400 Bad Request` mentioning `x-ms-version` | Old provider binary without Table Storage support | Rebuild from `kewalaka/add-table-storage-dataplane` branch |
+| `400 Bad Request` mentioning `x-ms-version` | Missing Storage request header | Managed resources need explicit headers; upstream data sources cannot currently supply them |
 | `404 Not Found` on entity read | Table does not exist yet | Confirm `depends_on = [azapi_resource.table]` is present |
 | `403` on table create despite correct RBAC | RBAC propagation delay | Add `time_sleep` resource after RBAC assignment, or re-run `apply` |
 
@@ -101,6 +104,21 @@ terraform destroy
 ## Setting up the GitHub Actions integration test
 
 The `integration.yml` workflow needs three things before it can run.
+
+Push and pull request runs build upstream `Azure/terraform-provider-azapi` main.
+Manual runs accept a `provider_ref` branch, tag, or commit SHA (default `main`).
+The workflow resolves that ref once and uses the exact SHA for checkout and the
+binary cache; the build job summary records the provider commit.
+
+To test a specific upstream commit without changing the consumer Terraform:
+
+```bash
+gh workflow run integration.yml --ref <consumer-branch> \
+  -f provider_ref=<upstream-commit-sha>
+```
+
+Schema rejection is a compatibility failure, not a live Azure API test. Apply
+only runs after a successful plan and approval of the `integration` environment.
 
 ### 1. Repository variables (Settings → Secrets and variables → Actions → Variables)
 
